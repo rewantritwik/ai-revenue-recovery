@@ -1,0 +1,243 @@
+{
+  "batch_size": 112,
+  "total_at_risk_inr": "1004852.50",
+  "total_recovered_inr": "215749.99",
+  "recovery_rate_pct": "21.5",
+  "addressable_recovery": {
+    "note": "Excludes FRAUD_FLAG, BLOCKED, and INVOICE_OVERDUE_SEVERE - these are never eligible for automated recovery by policy design, not agent failures.",
+    "addressable_at_risk_inr": "763381.17",
+    "addressable_recovered_inr": "215749.99",
+    "addressable_recovery_rate_pct": "28.3",
+    "excluded_by_design_inr": "241471.33"
+  },
+  "counts": {
+    "recovered": 44,
+    "escalated_to_human": 26,
+    "still_pending": 32,
+    "failed_no_recovery": 10
+  },
+  "breakdown_by_bucket": {
+    "SOFT_DECLINE": {
+      "count": 17,
+      "at_risk_inr": "74801.38",
+      "recovered_inr": "13608.96",
+      "recovery_rate_pct": "18.2"
+    },
+    "USER_ERROR": {
+      "count": 11,
+      "at_risk_inr": "49874.86",
+      "recovered_inr": "38839.17",
+      "recovery_rate_pct": "77.9"
+    },
+    "INVOICE_OVERDUE_SEVERE": {
+      "count": 7,
+      "at_risk_inr": "219255.63",
+      "recovered_inr": "0.00",
+      "recovery_rate_pct": "0.0"
+    },
+    "ABANDONED_SILENT": {
+      "count": 12,
+      "at_risk_inr": "44866.58",
+      "recovered_inr": "26745.86",
+      "recovery_rate_pct": "59.6"
+    },
+    "TRANSIENT": {
+      "count": 15,
+      "at_risk_inr": "72247.16",
+      "recovered_inr": "56036.21",
+      "recovery_rate_pct": "77.6"
+    },
+    "HARD_DECLINE": {
+      "count": 10,
+      "at_risk_inr": "49698.42",
+      "recovered_inr": "44331.93",
+      "recovery_rate_pct": "89.2"
+    },
+    "INVOICE_OVERDUE_MILD": {
+      "count": 4,
+      "at_risk_inr": "126212.20",
+      "recovered_inr": "0.00",
+      "recovery_rate_pct": "0.0"
+    },
+    "INVOICE_OVERDUE_MODERATE": {
+      "count": 9,
+      "at_risk_inr": "223621.60",
+      "recovered_inr": "0.00",
+      "recovery_rate_pct": "0.0"
+    },
+    "BLOCKED": {
+      "count": 1,
+      "at_risk_inr": "5574.34",
+      "recovered_inr": "0.00",
+      "recovery_rate_pct": "0.0"
+    },
+    "EXPIRED": {
+      "count": 1,
+      "at_risk_inr": "4592.93",
+      "recovered_inr": "4592.93",
+      "recovery_rate_pct": "100.0"
+    },
+    "AUTH_FAILURE": {
+      "count": 5,
+      "at_risk_inr": "27995.15",
+      "recovered_inr": "18139.56",
+      "recovery_rate_pct": "64.8"
+    },
+    "CUSTOMER_ABANDONED": {
+      "count": 9,
+      "at_risk_inr": "50385.67",
+      "recovered_inr": "6325.06",
+      "recovery_rate_pct": "12.6"
+    },
+    "FRAUD_FLAG": {
+      "count": 3,
+      "at_risk_inr": "16641.36",
+      "recovered_inr": "0.00",
+      "recovery_rate_pct": "0.0"
+    },
+    "ACTION_REQUIRED": {
+      "count": 4,
+      "at_risk_inr": "28017.89",
+      "recovered_inr": "2991.00",
+      "recovery_rate_pct": "10.7"
+    },
+    "LIMIT_HIT": {
+      "count": 4,
+      "at_risk_inr": "11067.33",
+      "recovered_inr": "4139.31",
+      "recovery_rate_pct": "37.4"
+    }
+  },
+  "exceptions": [
+    {
+      "event_id": "evt_invoice_inv_synth_00001",
+      "reason": "Invoice 31 days overdue exceeds compliant auto-chase window (30 days) - human/collections handoff required",
+      "amount_inr": "19324.12"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00018",
+      "reason": "Amount ₹29140.12 exceeds auto-action cap of ₹10000.00",
+      "amount_inr": "29140.12"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00015",
+      "reason": "Amount ₹41659.82 exceeds auto-action cap of ₹5000.00",
+      "amount_inr": "41659.82"
+    },
+    {
+      "event_id": "evt_00060",
+      "reason": "Exceeded bucket-specific max attempts (0) for BLOCKED",
+      "amount_inr": "5574.34"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00005",
+      "reason": "Amount ₹31671.18 exceeds auto-action cap of ₹10000.00",
+      "amount_inr": "31671.18"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00006",
+      "reason": "Amount ₹48086.54 exceeds auto-action cap of ₹10000.00",
+      "amount_inr": "48086.54"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00002",
+      "reason": "Invoice 39 days overdue exceeds compliant auto-chase window (30 days) - human/collections handoff required",
+      "amount_inr": "36943.42"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00011",
+      "reason": "Amount ₹27918.34 exceeds auto-action cap of ₹5000.00",
+      "amount_inr": "27918.34"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00010",
+      "reason": "Invoice 36 days overdue exceeds compliant auto-chase window (30 days) - human/collections handoff required",
+      "amount_inr": "46663.35"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00004",
+      "reason": "Invoice 42 days overdue exceeds compliant auto-chase window (30 days) - human/collections handoff required",
+      "amount_inr": "38340.38"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00019",
+      "reason": "Amount ₹38629.43 exceeds auto-action cap of ₹5000.00",
+      "amount_inr": "38629.43"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00020",
+      "reason": "Amount ₹20009.21 exceeds auto-action cap of ₹5000.00",
+      "amount_inr": "20009.21"
+    },
+    {
+      "event_id": "evt_00017",
+      "reason": "Fraud-risk signal - defense-only policy forbids auto-action",
+      "amount_inr": "2862.88"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00017",
+      "reason": "Invoice 34 days overdue exceeds compliant auto-chase window (30 days) - human/collections handoff required",
+      "amount_inr": "35795.17"
+    },
+    {
+      "event_id": "evt_00050",
+      "reason": "Per-customer daily action cap reached",
+      "amount_inr": "435.92"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00003",
+      "reason": "Amount ₹17314.36 exceeds auto-action cap of ₹10000.00",
+      "amount_inr": "17314.36"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00012",
+      "reason": "Amount ₹5599.57 exceeds auto-action cap of ₹5000.00",
+      "amount_inr": "5599.57"
+    },
+    {
+      "event_id": "evt_00021",
+      "reason": "Fraud-risk signal - defense-only policy forbids auto-action",
+      "amount_inr": "5704.13"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00009",
+      "reason": "Amount ₹21363.59 exceeds auto-action cap of ₹5000.00",
+      "amount_inr": "21363.59"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00016",
+      "reason": "Amount ₹45317.12 exceeds auto-action cap of ₹5000.00",
+      "amount_inr": "45317.12"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00007",
+      "reason": "Amount ₹19827.77 exceeds auto-action cap of ₹5000.00",
+      "amount_inr": "19827.77"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00013",
+      "reason": "Invoice 37 days overdue exceeds compliant auto-chase window (30 days) - human/collections handoff required",
+      "amount_inr": "22418.16"
+    },
+    {
+      "event_id": "evt_invoice_inv_synth_00008",
+      "reason": "Invoice 36 days overdue exceeds compliant auto-chase window (30 days) - human/collections handoff required",
+      "amount_inr": "19771.03"
+    },
+    {
+      "event_id": "evt_00003",
+      "reason": "Per-customer daily action cap reached",
+      "amount_inr": "433.02"
+    },
+    {
+      "event_id": "evt_00077",
+      "reason": "Per-customer daily action cap reached",
+      "amount_inr": "7762.09"
+    },
+    {
+      "event_id": "evt_00043",
+      "reason": "Fraud-risk signal - defense-only policy forbids auto-action",
+      "amount_inr": "8074.35"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+# NEVER commit these - contains real Razorpay API secrets
+.env
+.env.local
+.env.*.local
+
+# Dependencies - regenerated via npm install, don't need to be in git
+node_modules/
+
+# Large binary - anyone can download this themselves, don't bloat the repo
+cloudflared.exe
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# NOTE: dashboard.html, logs/audit-log.jsonl, logs/report.json, and
+# data/synthetic-batch.json are INTENTIONALLY committed, not ignored -
+# they are the actual evidence/deliverable a judge needs to see, not
+# just regeneratable build output.

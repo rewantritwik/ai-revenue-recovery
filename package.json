@@ -1,0 +1,18 @@
+{
+  "name": "ai-revenue-recovery",
+  "version": "1.0.0",
+  "description": "AI Revenue Recovery agent - detects revenue at risk across payment failures, subscription failures, checkout abandonment, and overdue invoices; diagnoses root cause; executes a bounded, audited recovery action.",
+  "main": "src/tools/run-batch.js",
+  "scripts": {
+    "generate": "node src/tools/generate-synthetic-data.js",
+    "run-batch": "node src/tools/run-batch.js",
+    "dashboard": "node src/tools/generate-dashboard.js",
+    "webhook-server": "node --env-file=.env src/server/webhook-server.js",
+    "tunnel": "node --env-file=.env src/server/start-tunnel.js",
+    "demo": "npm run generate && npm run run-batch && npm run dashboard"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "razorpay": "^2.9.4"
+  }
+}

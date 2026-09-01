@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Test Checkout Trigger</title>
+</head>
+
+<body>
+  <h2>Razorpay Test Checkout</h2>
+  <p>Order ID is pre-filled below from your terminal output. Click Pay, then use
+    a failure test card and click <b>Failure</b> on the mock bank page.</p>
+  <button id="pay-btn">Pay ₹49.99 (test order)</button>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    document.getElementById('pay-btn').onclick = function () {
+      var options = {
+        key: "rzp_test_TT51bFUjxtb2qx",
+        amount: 4999,
+        currency: "INR",
+        name: "AI Revenue Recovery Test",
+        description: "Test payment to trigger a failure webhook",
+        order_id: "order_TVcfWnVH8Ztmuc",
+        handler: function (response) {
+          alert("Payment succeeded: " + response.razorpay_payment_id);
+        },
+        modal: {
+          ondismiss: function () {
+            console.log("Checkout closed");
+          }
+        },
+        theme: { color: "#3399cc" }
+      };
+      var rzp = new Razorpay(options);
+      rzp.open();
+    };
+  </script>
+</body>
+
+</html>
