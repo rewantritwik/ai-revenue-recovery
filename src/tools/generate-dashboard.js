@@ -1,9 +1,20 @@
 const fs = require("fs");
 const path = require("path");
 
-const AUDIT_LOG_FILE = path.join(__dirname, "..", "..", "logs", "audit-log.jsonl");
-const REPORT_FILE = path.join(__dirname, "..", "..", "logs", "report.json");
-const OUT_FILE = path.join(__dirname, "..", "..", "dashboard.html");
+const AUDIT_LOG_FILE = path.join(__dirname, "logs", "audit-log.jsonl");
+const REPORT_FILE = path.join(__dirname, "logs", "report.json");
+const OUT_FILE = path.join(__dirname, "dashboard.html");
+
+
+function loadChartJsInline() {
+  const chartJsPath = path.join(__dirname, "node_modules", "chart.js", "dist", "chart.umd.min.js");
+  if (!fs.existsSync(chartJsPath)) {
+    console.error("chart.js not found in node_modules - run `npm install` first.");
+    process.exit(1);
+  }
+  return fs.readFileSync(chartJsPath, "utf-8");
+}
+
 
 const BUCKET_PLAIN = {
   TRANSIENT: "A temporary glitch (timeout or bank downtime) interrupted the payment.",
@@ -24,6 +35,7 @@ const BUCKET_PLAIN = {
   INVOICE_OVERDUE_SEVERE: "A business invoice is severely overdue (over a month).",
   UNKNOWN: "An unfamiliar issue the system hasn't seen a clear pattern for yet.",
 };
+
 
 const ACTION_PLAIN = {
   AUTO_RETRY: "Automatically tried the payment again.",
@@ -48,6 +60,7 @@ const OUTCOME_PLAIN = {
   ERROR: { label: "System error", icon: "❗" },
 };
 
+
 const BUCKET_SHORT = {
   TRANSIENT: "Timeout / bank downtime",
   HARD_DECLINE: "Bank declined (no reason given)",
@@ -67,7 +80,6 @@ const BUCKET_SHORT = {
   INVOICE_OVERDUE_SEVERE: "Invoice overdue (severe)",
   UNKNOWN: "Unfamiliar issue",
 };
-
 function shortBucket(bucket) {
   return BUCKET_SHORT[bucket] || bucket || "Unknown";
 }
@@ -75,11 +87,9 @@ function shortBucket(bucket) {
 function plainBucket(bucket) {
   return BUCKET_PLAIN[bucket] || `An issue classified as "${bucket || "unknown"}".`;
 }
-
 function plainAction(action) {
   return ACTION_PLAIN[action] || action || "No action recorded.";
 }
-
 function plainOutcome(outcome) {
   return OUTCOME_PLAIN[outcome] || { label: outcome || "Unknown", icon: "•" };
 }
@@ -117,7 +127,8 @@ function buildHtml(entries, report) {
     if (!e.outcome) continue;
     outcomeCounts[e.outcome] = (outcomeCounts[e.outcome] || 0) + 1;
   }
-
+  // Fixed, meaningful colors per outcome - green always means "money back", never
+  // assigned by array position, so the chart can't accidentally mislead.
   const OUTCOME_COLORS = {
     SUCCESS: "#34d399",
     PENDING: "#fbbf24",
@@ -129,9 +140,14 @@ function buildHtml(entries, report) {
   const outcomeKeys = Object.keys(outcomeCounts);
   const outcomeChartColors = outcomeKeys.map((k) => OUTCOME_COLORS[k] || "#98a2bf");
 
+  // --- Scannable failure breakdown, sorted by volume - this order also drives the bar chart below ---
+  // Computed directly from the full audit log (not report.json) so real live events are
+  // always included and every total on this page stays consistent with each other -
+  // report.json is only rebuilt from the synthetic batch each run and would otherwise
+  // silently under-count real events here.
   const bucketMap = {};
   for (const e of entries) {
-    if (!e.diagnosis_bucket) continue;
+    if (!e.diagnosis_bucket) continue; // skip recovery.confirmed / pipeline.error / etc, which have no bucket
     if (!bucketMap[e.diagnosis_bucket]) bucketMap[e.diagnosis_bucket] = { count: 0, atRisk: 0, recovered: 0 };
     bucketMap[e.diagnosis_bucket].count += 1;
     bucketMap[e.diagnosis_bucket].atRisk += e.amount || 0;
@@ -141,13 +157,15 @@ function buildHtml(entries, report) {
   const bucketCounts = bucketLabelsRaw.map((b) => ({
     bucket: b,
     count: bucketMap[b].count,
-    atRisk: bucketMap[b].atRisk / 100,
+    atRisk: bucketMap[b].atRisk / 100, // paise -> rupees
     recovered: bucketMap[b].recovered / 100,
   }));
   const totalCases = bucketCounts.reduce((s, b) => s + b.count, 0);
   const sortedBuckets = [...bucketCounts].sort((a, b) => b.count - a.count);
   const maxCount = Math.max(...sortedBuckets.map((b) => b.count), 1);
 
+  // --- Top-level totals, computed the SAME way (directly from the full audit log) so
+  // every number on this page is guaranteed consistent with every other number. ---
   const scoredEntries = entries.filter((e) => e.diagnosis_bucket && typeof e.amount === "number");
   const totalAtRiskPaise = scoredEntries.reduce((s, e) => s + e.amount, 0);
   const totalRecoveredPaise = scoredEntries.filter((e) => e.outcome === "SUCCESS").reduce((s, e) => s + e.amount, 0);
@@ -159,10 +177,16 @@ function buildHtml(entries, report) {
   const totalAtRiskDisplay = (totalAtRiskPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const totalRecoveredDisplay = (totalRecoveredPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // --- Exceptions, computed directly from the audit log too - this is what makes sure a
+  // REAL escalated event (e.g. a fraud flag hit live) would actually show up here. ---
   const exceptionsList = entries
     .filter((e) => e.gate_decision === "ESCALATE")
     .map((e) => ({ event_id: e.event_id, reason: e.gate_reason, amount_inr: ((e.amount || 0) / 100).toFixed(2) }));
 
+  // Bar chart now uses the SAME sorted order as the breakdown list above it, so the
+  // story is consistent top-to-bottom instead of two different orderings on screen.
+  // Uses SHORT labels for the axis (full sentences are far too long to display here) -
+  // the fuller explanation still lives in the breakdown list and glossary below.
   const bucketChartLabels = sortedBuckets.map((b) => shortBucket(b.bucket));
   const bucketAtRisk = sortedBuckets.map((b) => b.atRisk);
   const bucketRecovered = sortedBuckets.map((b) => b.recovered);
@@ -184,6 +208,7 @@ function buildHtml(entries, report) {
     })
     .join("\n");
 
+  // --- Real events: the plain-English story table ---
   const realEventRows = realEntries
     .map((e) => {
       const o = plainOutcome(e.outcome);
@@ -202,6 +227,7 @@ function buildHtml(entries, report) {
     })
     .join("\n");
 
+  // --- Exceptions: already-plain-English reasons, just styled better ---
   const exceptionsRows = exceptionsList
     .slice(0, 25)
     .map(
@@ -213,6 +239,7 @@ function buildHtml(entries, report) {
     )
     .join("\n");
 
+  // --- Glossary: every bucket explained once, for reference ---
   const glossaryRows = bucketLabelsRaw
     .map(
       (b) => `<tr>
@@ -222,6 +249,7 @@ function buildHtml(entries, report) {
     )
     .join("\n");
 
+  // --- Engine Status panel: our REAL pipeline stages, honestly labeled ---
   const engineModules = [
     { name: "Diagnosis Engine", desc: "Classifies root cause from Razorpay error codes and event type.", file: "diagnose.js" },
     {
@@ -251,7 +279,7 @@ function buildHtml(entries, report) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Revenue Recovery — Results Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>${loadChartJsInline()}</script>
 <style>
   :root {
     --bg: #0a0e17; --card: #131924; --card-alt: #1a2233; --border: #262f42;
@@ -335,6 +363,7 @@ function buildHtml(entries, report) {
   .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 800px) { .chart-row { grid-template-columns: 1fr; } }
 
+  /* Failure breakdown list */
   .bd-row { margin-bottom: 16px; }
   .bd-top { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 6px; }
   .bd-label { color: var(--text); }
@@ -342,6 +371,7 @@ function buildHtml(entries, report) {
   .bd-track { height: 7px; background: rgba(255,255,255,0.06); border-radius: 20px; overflow: hidden; }
   .bd-fill { height: 100%; border-radius: 20px; }
 
+  /* Engine status panel */
   .engine-row { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
   .engine-row:last-child { border-bottom: none; }
   .engine-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-top: 6px; flex-shrink: 0; box-shadow: 0 0 8px var(--green); }
@@ -517,6 +547,8 @@ function buildHtml(entries, report) {
   const realCount = ${realEntries.length};
   const syntheticCount = ${syntheticEntries.length};
 
+  // Horizontal bars read far better than rotated labels once you have more than
+  // ~6 categories - every label sits flat and legible, however many rows there are.
   new Chart(document.getElementById('bucketChart'), {
     type: 'bar',
     data: {
@@ -539,11 +571,21 @@ function buildHtml(entries, report) {
       },
       plugins: {
         legend: { position: 'top', labels: { color: '#f1f4fb', font: { size: 12 } } },
-        tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ₹' + ctx.parsed.x.toLocaleString('en-IN') } }
+        tooltip: {
+          backgroundColor: '#1a2233',
+          titleColor: '#f1f4fb',
+          bodyColor: '#f1f4fb',
+          borderColor: '#2a3348',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: { label: (ctx) => ctx.dataset.label + ': ₹' + ctx.parsed.x.toLocaleString('en-IN') }
+        }
       }
     }
   });
 
+  // Doughnut with count+percentage labeled directly in the legend, plus the total
+  // case count drawn in the empty center - no hovering required to read either number.
   const outcomeTotal = Object.values(outcomeCounts).reduce((a,b) => a+b, 0);
   const centerTextPlugin = {
     id: 'centerText',
@@ -599,6 +641,12 @@ function buildHtml(entries, report) {
           }
         },
         tooltip: {
+          backgroundColor: '#1a2233',
+          titleColor: '#f1f4fb',
+          bodyColor: '#f1f4fb',
+          borderColor: '#2a3348',
+          borderWidth: 1,
+          padding: 10,
           callbacks: {
             label: (ctx) => {
               const pct = outcomeTotal ? Math.round((ctx.parsed/outcomeTotal)*100) : 0;
@@ -620,7 +668,15 @@ function buildHtml(entries, report) {
       indexAxis: 'y',
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => ctx.parsed.x + ' events' } }
+        tooltip: {
+          backgroundColor: '#1a2233',
+          titleColor: '#f1f4fb',
+          bodyColor: '#f1f4fb',
+          borderColor: '#2a3348',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: { label: (ctx) => ctx.parsed.x + ' events' }
+        }
       },
       scales: {
         x: { ticks: { color: '#98a2bf' }, grid: { color: 'rgba(255,255,255,0.05)' } },
