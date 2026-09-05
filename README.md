@@ -1,19 +1,28 @@
 # AI Revenue Recovery Agent
 
-Detects revenue at risk across all four loss types named in the brief, diagnoses root
-cause, and executes a **bounded, audited, compliant** recovery action — never a
-free-form agent decision.
+**A policy-bounded agent that detects failed payments, diagnoses root cause, and executes automated recovery actions — integrated live with Razorpay's real API, not just simulated data.**
+
+🔗 **[Live Dashboard](https://rewantritwik.github.io/ai-revenue-recovery/dashboard.html)** — see it running against real audit data, no setup required.
+
+Detects revenue at risk across four loss types, diagnoses root cause, and executes a **bounded, audited, compliant** recovery action — never a free-form agent decision.
 
 > "Don't just identify the problem. Show measured money recovered across a batch,
 > with compliant escalation, stopping rules, and an audit trail." — the bar this
 > system is built against, clause by clause.
+
+## Highlights
+
+- **Real Razorpay integration**, not just synthetic data — live webhook receipt, HMAC signature verification, and real API calls (retry orders, payment links)
+- **4 real bugs found and fixed** through live testing — including a webhook payload structure gap and an unsafe error-extraction bug (see [Build notes](#build-notes) below)
+- **Bounded by design** — every failure type maps to exactly one pre-approved action within hard caps; the agent cannot invent a response outside its policy table
+- **Fully offline-capable dashboard** — self-contained HTML, no CDN dependency, deployable anywhere
 
 ## The four loops
 
 | Loss type | How it's detected | File |
 |---|---|---|
 | Payment degrades | Razorpay `payment.failed` webhook | `src/server/webhook-server.js` |
-| Subscription fails | Razorpay `subscription.charge.failed` webhook | `src/server/webhook-server.js` |
+| Subscription fails | Razorpay `subscription.pending` / `subscription.halted` webhook | `src/server/webhook-server.js` |
 | Checkout abandoned | No webhook exists for this — polls Orders vs Payments, flags orders unpaid after 15 min | `src/detectors/abandonment-detector.js` |
 | Invoice overdue | Polls Invoices API, buckets by days overdue on an escalation ladder | `src/detectors/invoice-chaser.js` |
 
@@ -29,17 +38,18 @@ npm run demo
 This generates a 100+ event batch across all four loss types and prints a full
 report: total at risk, total recovered, recovery rate, and a bucket-by-bucket
 breakdown. Full detail lands in `logs/audit-log.jsonl` (one line per decision)
-and `logs/report.json`.
+and `logs/report.json`. Run `npm run dashboard` afterward to regenerate the
+visual dashboard.
 
 ## Going live against real Razorpay test-mode
 
 1. Create a Razorpay account, switch to **Test Mode**, grab your test API keys.
 2. Set env vars: `RZP_TEST_KEY`, `RZP_TEST_SECRET`, `RZP_WEBHOOK_SECRET`.
-3. Download `cloudflared` for Windows from
-   https://github.com/cloudflare/cloudflared/releases/latest
-   (grab `cloudflared-windows-amd64.exe`, rename to `cloudflared.exe`, place it
-   in this project folder). Run `npm run webhook-server`, then in a second
-   terminal `npm run tunnel` — it prints a `https://xxx.trycloudflare.com` URL.
+3. Download `cloudflared` from
+   [github.com/cloudflare/cloudflared/releases/latest](https://github.com/cloudflare/cloudflared/releases/latest),
+   place the executable in this project folder. Run `npm run webhook-server`,
+   then in a second terminal `npm run tunnel` — it prints a
+   `https://xxx.trycloudflare.com` URL.
 4. In the Razorpay dashboard, add a Test Mode webhook pointed at
    `https://<your-tunnel>/webhook`, subscribed to at minimum:
    `payment.failed`, `payment.captured`, `order.paid`, `payment_link.paid`,
@@ -50,20 +60,41 @@ and `logs/report.json`.
 
 ## Why this satisfies the bar
 
-- **Bounded**: every bucket in `src/core/config.js` maps to exactly one allowed action —
-  the agent cannot invent an action outside this table.
-- **Gated**: `src/core/policy-gate.js` enforces retry caps, amount caps, per-customer
-  caps, and a hard compliance line (invoices over 30 days always escalate to a
-  human; fraud-flagged payments never get auto-acted on at all).
+- **Bounded**: every bucket in `src/core/config.js` maps to exactly one allowed
+  action — the agent cannot invent an action outside this table.
+- **Gated**: `src/core/policy-gate.js` enforces retry caps, amount caps,
+  per-customer caps, and a hard compliance line (invoices over 30 days always
+  escalate to a human; fraud-flagged payments never get auto-acted on at all).
 - **Auditable**: every decision — act or escalate — writes one immutable line
   to `logs/audit-log.jsonl` with the diagnosis, confidence, reasoning, action,
   and outcome.
-- **Measured**: `src/tools/run-batch.js` computes real recovery rate, broken down by
-  bucket, plus an honest exceptions list of everything the agent could not
-  resolve on its own.
-- **Graceful failure handling**: `src/core/action-executor.js` deliberately injects one
-  forced failure (`evt_00013`) so the demo shows the system logging and
-  stopping cleanly rather than looping or crashing.
+- **Measured**: `src/tools/run-batch.js` computes real recovery rate, broken
+  down by bucket, plus an honest exceptions list of everything the agent could
+  not resolve on its own.
+- **Graceful failure handling**: `src/core/action-executor.js` deliberately
+  injects one forced failure so the demo shows the system logging and stopping
+  cleanly rather than looping or crashing.
+
+## Build notes
+
+Most of the real challenges surfaced only after connecting to Razorpay's live
+test infrastructure instead of relying on synthetic data alone:
+
+- **Webhook payload gaps** — notes used to match recovery actions back to the
+  original failure didn't reliably carry over between order, payment, and
+  payment-link objects; fixed by checking all three sources.
+- **Unsafe error handling** — Razorpay's SDK doesn't always throw a standard
+  `Error`, so real failure reasons were logging as `"undefined"` until a proper
+  extraction helper was added.
+- **Incorrect event assumptions** — an early version was built around a
+  subscription event that doesn't actually exist in Razorpay's API; caught by
+  checking the live webhook dashboard against the code.
+- **Anti-fraud rejection on recovery actions** — payment links occasionally
+  failed Razorpay's fraud filter on repetitive-digit phone numbers; added an
+  email fallback instead of dropping the customer entirely.
+- **Tunnel infrastructure** — worked through ngrok (antivirus false positives)
+  and localtunnel (blacklisted by Razorpay) before settling on Cloudflare's
+  tunnel, with raw request logging added to isolate delivery failures.
 
 ## Project structure
 
